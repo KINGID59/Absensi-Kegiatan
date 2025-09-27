@@ -1,1 +1,517 @@
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Absensi — Fixed</title>
 
+  <!-- Tailwind (styling cepat) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* sedikit custom agar mirip tampilan Anda */
+    body { background: #1368bc; }
+    .card { background: rgb(52, 208, 235); border-radius: 12px; padding: 16px; box-shadow: 0 8px 28px rgba(2,6,23,0.06); }
+    .card-anim { transition: transform .28s, box-shadow .28s; }
+    .card-anim:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(2,6,23,0.08); }
+    .dark .card { background: #000000; color: #134b8a; box-shadow: 0 12px 40px rgba(2,6,23,0.6); }
+    input:focus, select:focus, textarea:focus { outline: none; box-shadow: 0 0 0 4px rgb(0, 0, 0); border-color: #1945ac; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-900">
+
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-500 flex items-center justify-center text-white">A</div>
+        <div>
+          <h1 class="text-2xl font-semibold">Absensi Digital Kegiatan
+          <p class="text-sm text-slate-500">Fkmsb Wilayah Bangkalan
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button id="btnToggleTheme" class="px-3 py-2 rounded-md bg-white/60 border">Mode Gelap</button>
+        <button id="btnExportAll" class="px-3 py-2 rounded-md bg-indigo-600 text-white">Ekspor CSV</button>
+      </div>
+    </header>
+
+    <main class="grid md:grid-cols-3 gap-6">
+      <!-- kiri: kegiatan -->
+      <section class="md:col-span-1 space-y-4">
+        <div class="card card-anim">
+          <h2 class="font-semibold">Buat / Kelola Kegiatan</h2>
+          <form id="formEvent" class="space-y-3 mt-2">
+            <div>
+              <label class="text-sm block">Nama Kegiatan</label>
+              <input id="eventName" type="text" placeholder="Contoh: Rapat" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="text-sm block">Tanggal & Waktu</label>
+              <input id="eventDatetime" type="datetime-local" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" />
+            </div>
+            <div class="flex gap-2">
+              <button type="submit" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg">Simpan Kegiatan</button>
+              <button id="btnNew" type="button" class="flex-1 border rounded-lg px-4 py-2">Baru</button>
+            </div>
+          </form>
+
+          <div class="mt-3">
+            <label class="text-sm block">Kegiatan Tersedia</label>
+            <select id="selectEvent" class="mt-2 w-full rounded-lg border px-3 py-2 text-sm"></select>
+          </div>
+
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button id="btnGenerateQR" class="bg-emerald-500 text-white px-3 py-2 rounded-lg">Buat QR</button>
+            <button id="btnOpenScanner" class="bg-amber-500 text-white px-3 py-2 rounded-lg">Buka Scanner</button>
+          </div>
+        </div>
+
+        <div class="card card-anim">
+          <h3 class="font-semibold">QR Kegiatan</h3>
+          <div id="qrcode" class="mt-3 flex items-center justify-center p-3 bg-slate-50 rounded-lg"></div>
+          <div id="qrMeta" class="text-xs text-slate-500 mt-2">QR kosong — buat kegiatan dulu.</div>
+          <button id="btnDownloadQR" class="mt-2 text-sm underline text-indigo-600 hidden">Unduh QR</button>
+        </div>
+      </section>
+
+      <!-- tengah & kanan -->
+      <section class="md:col-span-2 space-y-4">
+        <div class="card card-anim">
+          <div class="flex items-start justify-between">
+            <div>
+              <h2 class="font-semibold">Scanner QR & Absen Manual</h2>
+              <p class="text-sm text-slate-500">Pilih kegiatan lalu scan atau tambahkan manual.</p>
+            </div>
+            <div class="text-sm text-slate-500">Pencarian sudah aktif</div>
+          </div>
+
+          <div class="mt-3 grid md:grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm">Pencarian / Cari Nama</label>
+              <input id="searchBox" type="text" placeholder="Cari: nama atau id" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="text-sm">Filter Tanggal</label>
+              <input id="filterDate" type="date" class="mt-1 w-full rounded-lg border px-3 py-2 text-sm" />
+            </div>
+          </div>
+
+          <div class="mt-4 grid md:grid-cols-2 gap-4">
+            <div class="p-3 rounded-lg bg-slate-50 min-h-[260px]">
+              <div id="reader" class="w-full h-60 flex items-center justify-center relative">
+                <div id="readerInner" style="width:100%;"></div>
+              </div>
+              <div class="mt-2 flex gap-2">
+                <button id="btnStartScan" class="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-lg">Mulai Scan</button>
+                <button id="btnStopScan" class="flex-1 border rounded-lg px-3 py-2 disabled:opacity-50" disabled>Hentikan</button>
+              </div>
+              <p class="text-xs text-slate-500 mt-2">Scanner butuh izin kamera (localhost/https).</p>
+            </div>
+
+            <div class="p-3 rounded-lg bg-slate-50">
+              <h3 class="font-medium">Absen Manual</h3>
+              <form id="formManual" class="mt-3 space-y-3">
+                <select id="memberSelect" class="w-full rounded-lg border px-3 py-2 text-sm">
+                  <option value="">-- Pilih anggota (opsional) --</option>
+                </select>
+                <input id="manualName" placeholder="Nama peserta (opsional)" class="w-full rounded-lg border px-3 py-2 text-sm" />
+                <input id="manualId" placeholder="NIM / ID (opsional)" class="w-full rounded-lg border px-3 py-2 text-sm" />
+                <select id="manualStatus" class="w-full rounded-lg border px-3 py-2 text-sm">
+                  <option value="hadir">Hadir</option>
+                  <option value="izin">Izin</option>
+                  <option value="sakit">Sakit</option>
+                </select>
+                <div class="flex gap-2">
+                  <button type="submit" class="flex-1 bg-emerald-500 text-white px-4 py-2 rounded-lg">Tambah Absen</button>
+                  <button id="btnClearManual" type="button" class="flex-1 border rounded-lg px-4 py-2">Bersihkan</button>
+                </div>
+              </form>
+              <p class="text-xs text-slate-500 mt-2">Data disimpan di localStorage.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- anggota -->
+        <div class="card card-anim">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-semibold">Kelola Anggota</h3>
+            <small class="text-slate-500">Tambah / edit / hapus</small>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-3">
+            <div>
+              <input id="memberName" placeholder="Nama anggota" class="w-full rounded-lg border px-3 py-2 text-sm mb-2" />
+              <input id="memberId" placeholder="NIM / ID anggota" class="w-full rounded-lg border px-3 py-2 text-sm mb-2" />
+              <div class="flex gap-2">
+                <button id="btnAddMember" class="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-lg">Tambah Anggota</button>
+                <button id="btnClearMember" class="flex-1 border px-3 py-2 rounded-lg">Bersihkan</button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm" id="memberTable">
+                <thead class="text-slate-500">
+                  <tr><th class="p-2 text-left">Nama</th><th class="p-2 text-left">ID</th><th class="p-2 text-left">Aksi</th></tr>
+                </thead>
+                <tbody id="memberBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- daftar hadir -->
+        <div class="card card-anim">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold">Daftar Hadir</h3>
+            <div class="flex gap-2">
+              <button id="btnExportCSV" class="px-3 py-2 rounded-lg border text-sm">Ekspor CSV</button>
+              <button id="btnClearAll" class="px-3 py-2 rounded-lg border text-sm text-rose-600">Hapus Semua</button>
+            </div>
+          </div>
+
+          <div class="mt-3 overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-slate-500">
+                <tr>
+                  <th class="text-left p-2">Waktu</th>
+                  <th class="text-left p-2">Nama</th>
+                  <th class="text-left p-2">ID</th>
+                  <th class="text-left p-2">Kegiatan</th>
+                  <th class="text-left p-2">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- libs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  /* ===== storage keys ===== */
+  const LS_EVENTS = 'abs_events_v1';
+  const LS_MEMBERS = 'abs_members_v1';
+  const LS_RECORDS = 'abs_records_v1';
+
+  /* ===== state ===== */
+  let events = JSON.parse(localStorage.getItem(LS_EVENTS) || '[]');
+  let members = JSON.parse(localStorage.getItem(LS_MEMBERS) || '[]');
+  let records = JSON.parse(localStorage.getItem(LS_RECORDS) || '[]');
+
+  /* ===== DOM helpers ===== */
+  const $ = id => document.getElementById(id);
+
+  function saveAll() {
+    localStorage.setItem(LS_EVENTS, JSON.stringify(events));
+    localStorage.setItem(LS_MEMBERS, JSON.stringify(members));
+    localStorage.setItem(LS_RECORDS, JSON.stringify(records));
+  }
+
+  function showToast(msg='Sukses') {
+    const d = document.createElement('div');
+    d.textContent = msg;
+    d.style.position = 'fixed';
+    d.style.right = '18px';
+    d.style.bottom = '18px';
+    d.style.background = '#111827';
+    d.style.color = 'white';
+    d.style.padding = '10px 14px';
+    d.style.borderRadius = '8px';
+    d.style.zIndex = 9999;
+    d.style.opacity = '0';
+    d.style.transition = 'opacity .2s';
+    document.body.appendChild(d);
+    requestAnimationFrame(()=> d.style.opacity = '1');
+    setTimeout(()=> { d.style.opacity = '0'; setTimeout(()=> d.remove(), 300); }, 1400);
+  }
+
+  function playConfetti() { try { confetti({ particleCount: 40, spread: 70, origin:{ y:0.6 } }); } catch(e){} }
+
+  /* ===== render helpers ===== */
+  function refreshEventSelect() {
+    const sel = $('selectEvent');
+    sel.innerHTML = '';
+    if (events.length === 0) {
+      const opt = document.createElement('option'); opt.value = ''; opt.textContent = '-- belum ada kegiatan --'; sel.appendChild(opt);
+      return;
+    }
+    events.forEach(ev => {
+      const opt = document.createElement('option'); opt.value = ev.id; opt.textContent = ev.name + (ev.datetime ? ' • ' + new Date(ev.datetime).toLocaleString() : '');
+      sel.appendChild(opt);
+    });
+  }
+
+  function refreshMemberSelect() {
+    const sel = $('memberSelect');
+    sel.innerHTML = '<option value="">-- Pilih anggota (opsional) --</option>';
+    members.forEach(m => {
+      const o = document.createElement('option'); o.value = m.pid; o.textContent = `${m.name} (${m.pid})`;
+      sel.appendChild(o);
+    });
+  }
+
+  function renderMembersTable() {
+    const tbody = $('memberBody'); tbody.innerHTML = '';
+    members.forEach((m, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="p-2 align-top">${escapeHtml(m.name)}</td>
+        <td class="p-2 align-top">${escapeHtml(m.pid)}</td>
+        <td class="p-2 align-top text-sm">
+          <button data-idx="${idx}" class="btn-edit text-indigo-600 mr-2">Edit</button>
+          <button data-idx="${idx}" class="btn-delete text-rose-600 mr-2">Hapus</button>
+          <button data-idx="${idx}" class="btn-qrcode text-emerald-600">QR</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    attachMemberButtons();
+  }
+
+  function renderTable() {
+    const tbody = $('tableBody'); tbody.innerHTML = '';
+    const q = $('searchBox').value.trim().toLowerCase();
+    const dateFilter = $('filterDate').value; // YYYY-MM-DD
+    // filter records
+    const list = records.filter(r => {
+      if (q) {
+        const inName = (r.name||'').toLowerCase().includes(q);
+        const inId = ((r.pid||r.id||r.memberPid||'')+'').toLowerCase().includes(q);
+        const inEvent = (r.eventName||'').toLowerCase().includes(q);
+        if (!(inName || inId || inEvent)) return false;
+      }
+      if (dateFilter) {
+        // compare date portion in ISO (safe enough)
+        if ((new Date(r.time)).toISOString().slice(0,10) !== dateFilter) return false;
+      }
+      return true;
+    });
+
+    if (list.length === 0) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td class="p-3 text-slate-500" colspan="5">Belum ada catatan</td>';
+      tbody.appendChild(tr);
+      return;
+    }
+
+    list.forEach(r => {
+      const tr = document.createElement('tr');
+      const displayTime = new Date(r.time).toLocaleString();
+      const idVal = r.pid || r.id || r.memberPid || '';
+      tr.innerHTML = `
+        <td class="p-2 align-top text-xs text-slate-500">${escapeHtml(displayTime)}</td>
+        <td class="p-2 align-top font-medium">${escapeHtml(r.name)}</td>
+        <td class="p-2 align-top text-xs">${escapeHtml(idVal)}</td>
+        <td class="p-2 align-top text-sm text-slate-600">${escapeHtml(r.eventName||'-')}</td>
+        <td class="p-2 align-top"><span class="px-2 py-1 text-xs rounded ${r.status==='hadir' ? 'bg-emerald-100 text-emerald-700' : r.status==='izin' ? 'bg-yellow-100 text-yellow-700' : 'bg-rose-100 text-rose-700'}">${escapeHtml(r.status)}</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function escapeHtml(s='') { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  /* ===== attach member actions (edit, delete, QR) ===== */
+  function attachMemberButtons() {
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.onclick = () => {
+        const i = Number(btn.dataset.idx);
+        if (!confirm('Hapus anggota ini?')) return;
+        members.splice(i,1); saveAll(); refreshMemberSelect(); renderMembersTable(); showToast('Anggota dihapus');
+      };
+    });
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+      btn.onclick = () => {
+        const i = Number(btn.dataset.idx); const m = members[i];
+        const newName = prompt('Edit nama:', m.name); if (newName === null) return;
+        const newPid = prompt('Edit ID:', m.pid); if (newPid === null) return;
+        members[i].name = newName.trim(); members[i].pid = newPid.trim();
+        saveAll(); refreshMemberSelect(); renderMembersTable(); showToast('Anggota diperbarui');
+      };
+    });
+    document.querySelectorAll('.btn-qrcode').forEach(btn => {
+      btn.onclick = () => {
+        const i = Number(btn.dataset.idx); const m = members[i];
+        const data = { type:'member', pid: m.pid, name: m.name };
+        const w = window.open('', '_blank', 'width=360,height=420');
+        w.document.write('<div style="display:flex;flex-direction:column;align-items:center;padding:12px;font-family:sans-serif;"><h3>QR Anggota</h3><div id="c"></div><p>'+escapeHtml(m.name)+' ('+escapeHtml(m.pid)+')</p><button id="dl">Unduh</button></div>');
+        w.document.close();
+        setTimeout(()=> {
+          const cdiv = w.document.getElementById('c');
+          new QRCode(cdiv, { text: JSON.stringify(data), width:220, height:220, correctLevel: QRCode.CorrectLevel.H });
+          w.document.getElementById('dl').onclick = () => {
+            const canvas = cdiv.querySelector('canvas'); const url = canvas.toDataURL('image/png'); const a = w.document.createElement('a'); a.href = url; a.download = m.pid + '.png'; a.click();
+          };
+        }, 200);
+      };
+    });
+  }
+
+  /* ===== events: create event ===== */
+  $('formEvent').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('eventName').value.trim();
+    const dt = $('eventDatetime').value || '';
+    if (!name) { showToast('Nama kegiatan wajib'); return; }
+    const id = 'ev_' + Date.now().toString(36);
+    events.push({ id, name, datetime: dt });
+    saveAll(); refreshEventSelect(); $('eventName').value = ''; $('eventDatetime').value = '';
+    showToast('Kegiatan disimpan');
+  });
+  $('btnNew').addEventListener('click', ()=> { $('eventName').value = ''; $('eventDatetime').value = ''; });
+
+  /* ===== QR generation for event (simple) ===== */
+  $('btnGenerateQR').addEventListener('click', ()=> {
+    const sel = $('selectEvent'); if (!sel.value) { showToast('Pilih kegiatan'); return; }
+    const ev = events.find(e => e.id === sel.value);
+    if (!ev) { showToast('Kegiatan tidak ditemukan'); return; }
+    const payload = { type:'event', id: ev.id, name: ev.name, ts: Date.now() };
+    $('qrcode').innerHTML = '';
+    new QRCode($('qrcode'), { text: JSON.stringify(payload), width:220, height:220, correctLevel: QRCode.CorrectLevel.H });
+    $('qrMeta').textContent = 'QR untuk: ' + ev.name;
+    $('btnDownloadQR').classList.remove('hidden');
+    showToast('QR dibuat');
+  });
+
+  $('btnDownloadQR').addEventListener('click', ()=> {
+    const c = $('qrcode').querySelector('canvas'); if (!c) return showToast('QR belum tersedia');
+    const url = c.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download = 'qr-event.png'; a.click();
+  });
+
+  /* ===== members CRUD ===== */
+  $('btnAddMember').addEventListener('click', ()=> {
+    const name = $('memberName').value.trim(); const pid = $('memberId').value.trim();
+    if (!name || !pid) { showToast('Nama & ID wajib'); return; }
+    if (members.some(m => m.pid === pid)) { showToast('ID sudah terdaftar'); return; }
+    members.push({ name, pid }); saveAll(); refreshMemberSelect(); renderMembersTable();
+    $('memberName').value=''; $('memberId').value=''; showToast('Anggota ditambahkan');
+  });
+  $('btnClearMember').addEventListener('click', ()=> { $('memberName').value=''; $('memberId').value=''; });
+
+  /* ===== scanner (html5-qrcode) ===== */
+  let html5QrScanner = null, scanning = false;
+  $('btnStartScan').addEventListener('click', async () => {
+    if (scanning) return;
+    if (!$('selectEvent').value) { showToast('Pilih kegiatan dulu'); return; }
+    html5QrScanner = new Html5Qrcode("readerInner");
+    try {
+      scanning = true; $('btnStartScan').disabled = true; $('btnStopScan').disabled = false;
+      await html5QrScanner.start({ facingMode: "environment" }, { fps: 8, qrbox: { width: 250, height: 250 } },
+        (decodedText)=> { handleScannedText(decodedText); },
+        (error)=> { /* ignore minor errors */ }
+      );
+      showToast('Scanner aktif');
+    } catch (err) {
+      console.error(err); showToast('Gagal akses kamera (cek izin / gunakan localhost HTTPS)'); scanning = false; $('btnStartScan').disabled = false; $('btnStopScan').disabled = true;
+    }
+  });
+  $('btnStopScan').addEventListener('click', async ()=> {
+    if (!scanning || !html5QrScanner) return;
+    try { await html5QrScanner.stop(); html5QrScanner.clear(); } catch(e){}
+    scanning = false; $('btnStartScan').disabled = false; $('btnStopScan').disabled = true; showToast('Scanner dihentikan');
+  });
+  $('btnOpenScanner').addEventListener('click', ()=> { document.getElementById('reader').scrollIntoView({behavior:'smooth', block:'center'}); $('btnStartScan').click(); });
+
+  function handleScannedText(text) {
+    // try parse JSON (member or event)
+    try {
+      const obj = JSON.parse(text);
+      if (obj.type === 'member' && obj.pid) {
+        // mark member present for selected event
+        const ev = events.find(e => e.id === $('selectEvent').value) || { name:'-' };
+        const mem = members.find(m => m.pid === obj.pid) || { name: obj.name || 'Unknown', pid: obj.pid };
+        const rec = { id:'r_'+Date.now().toString(36), name: mem.name, pid: mem.pid, eventName: ev.name, status: 'hadir', time: new Date().toISOString() };
+        records.unshift(rec); saveAll(); renderTable(); playConfetti(); showToast('Absensi (QR anggota)'); return;
+      }
+      if (obj.type === 'event' && obj.id) {
+        const ev = events.find(e => e.id === obj.id) || { name: obj.name || '-' };
+        const rec = { id:'r_'+Date.now().toString(36), name: 'Peserta QR', pid:'', eventName: ev.name, status:'hadir', time: new Date().toISOString() };
+        records.unshift(rec); saveAll(); renderTable(); playConfetti(); showToast('Absensi (QR event)'); return;
+      }
+    } catch(e) {
+      // not JSON => treat as plain text name
+    }
+    // fallback
+    const ev = events.find(e => e.id === $('selectEvent').value) || { name:'-' };
+    const rec = { id:'r_'+Date.now().toString(36), name: String(text).slice(0,60), pid:'', eventName: ev.name, status:'hadir', time: new Date().toISOString() };
+    records.unshift(rec); saveAll(); renderTable(); playConfetti(); showToast('Absensi terdaftar');
+  }
+
+  /* ===== manual attendance ===== */
+  $('formManual').addEventListener('submit', e => {
+    e.preventDefault();
+    if (!$('selectEvent').value) { showToast('Pilih kegiatan dulu'); return; }
+    const ev = events.find(ev=>ev.id==$('selectEvent').value) || { name:'-' };
+    const selectedPid = $('memberSelect').value;
+    let name = $('manualName').value.trim(); let pidval = $('manualId').value.trim();
+    const status = $('manualStatus').value;
+    if (selectedPid) {
+      const m = members.find(mm => mm.pid === selectedPid);
+      if (m) { name = m.name; pidval = m.pid; }
+    }
+    if (!name) { showToast('Nama diperlukan'); return; }
+    const rec = { id:'r_'+Date.now().toString(36), name, pid: pidval || '', eventName: ev.name, status, time: new Date().toISOString() };
+    records.unshift(rec); saveAll(); renderTable(); playConfetti(); showToast('Absensi manual ditambah');
+    $('manualName').value=''; $('manualId').value=''; $('memberSelect').value='';
+  });
+  $('btnClearManual').addEventListener('click', ()=> { $('manualName').value=''; $('manualId').value=''; $('memberSelect').value=''; });
+
+  /* ===== search & filter (WORKS) ===== */
+  $('searchBox').addEventListener('input', renderTable);
+  $('filterDate').addEventListener('change', renderTable);
+
+  /* ===== export / clear ===== */
+  function exportCSV() {
+    if (records.length === 0) { showToast('Tidak ada data'); return; }
+    const cols = ['waktu','nama','id','kegiatan','status'];
+    const rows = records.map(r => [r.time, r.name.replaceAll('"','""'), (r.pid||r.id||''), r.eventName||'', r.status]);
+    const csv = [cols.join(',')].concat(rows.map(row => row.map(cell => `"${cell}"`).join(','))).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'absensi_'+(new Date().toISOString().slice(0,10))+'.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+  $('btnExportCSV').addEventListener('click', exportCSV);
+  $('btnExportAll').addEventListener('click', exportCSV);
+
+  $('btnClearAll').addEventListener('click', ()=> {
+    if (!confirm('Hapus semua catatan absensi?')) return;
+    records = []; saveAll(); renderTable(); showToast('Semua data dihapus');
+  });
+
+  /* ===== theme toggle ===== */
+  $('btnToggleTheme').addEventListener('click', ()=> {
+    document.documentElement.classList.toggle('dark');
+    $('btnToggleTheme').textContent = document.documentElement.classList.contains('dark') ? 'Mode Terang' : 'Mode Gelap';
+  });
+
+  /* ===== init render ===== */
+  function initRender() {
+    refreshEventSelect();
+    refreshMemberSelect();
+    renderMembersTable();
+    renderTable();
+  }
+  initRender();
+
+  /* keep multi-tab in sync */
+  window.addEventListener('storage', (e) => {
+    if ([LS_EVENTS, LS_MEMBERS, LS_RECORDS].includes(e.key)) {
+      events = JSON.parse(localStorage.getItem(LS_EVENTS) || '[]');
+      members = JSON.parse(localStorage.getItem(LS_MEMBERS) || '[]');
+      records = JSON.parse(localStorage.getItem(LS_RECORDS) || '[]');
+      initRender();
+    }
+  });
+
+  /* stop camera on leave */
+  window.addEventListener('beforeunload', ()=> { if (html5QrScanner && typeof html5QrScanner.stop === 'function') html5QrScanner.stop().catch(()=>{}); });
+});
+</script>
+</body>
+</html>
