@@ -3,7 +3,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Absensi — Fixed</title>
-
   <!-- Tailwind (styling cepat) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -23,8 +22,8 @@
       <div class="flex items-center gap-4">
         <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-500 flex items-center justify-center text-white">A</div>
         <div>
-          <h1 class="text-2xl font-semibold">Absensi Digital Kegiatan
-          <p class="text-sm text-slate-500">Fkmsb Wilayah Bangkalan
+          <h1 class="text-2xl font-semibold">Absensi Digital Kegiatan</h1>
+          <p class="text-sm text-slate-500">Fkmsb Wilayah Bangkalan</p>
         </div>
       </div>
 
